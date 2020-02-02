@@ -1,0 +1,27 @@
+{
+  "name": "xoshiro",
+  "version": "0.1.3",
+  "description": "A pseudo random number generator",
+  "main": "index.js",
+  "scripts": {
+    "install": "cmake-js compile"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/0x10001/xoshiro"
+  },
+  "keywords": [
+    "random",
+    "xoshiro"
+  ],
+  "author": "0x10001 <ericwong@zju.edu.cn>",
+  "license": "MIT",
+  "types": "index.d.ts",
+  "dependencies": {
+    "bindings": "^1.5.0",
+    "cmake-js": "^6.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^13.5.0"
+  }
+}
