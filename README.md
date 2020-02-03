@@ -6,7 +6,14 @@ A pseudo-random-number-generator module implemented in N-API. [Here](http://prng
 
 ## Requirements
 
-[**Cmake**](https://cmake.org/download) is strongly recommended for building. Make sure it is installed first.
+- [CMake](http://www.cmake.org/download/)
+- A proper C/C++ compiler toolchain of the given platform
+    - **Windows**:
+        - [Visual C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
+        or a recent version of Visual C++ will do ([the free Community](https://www.visualstudio.com/products/visual-studio-community-vs) version works well)
+    - **Unix/Posix**:
+        - Clang or GCC
+        - Make
 
 ## Installation
 
