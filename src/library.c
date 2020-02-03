@@ -132,8 +132,7 @@ static napi_value create_state(napi_env env, napi_callback_info cb_info) {
 
   /* algorithm should be in the table */
   char alg_name[8];
-  size_t sz;
-  NAPI_CALL(env, napi_get_value_string_utf8(env, argv[0], alg_name, 8, &sz));
+  NAPI_CALL(env, napi_get_value_string_utf8(env, argv[0], alg_name, 8, NULL));
 
   prng_alg_reg *reg = lookup(alg_name);
 

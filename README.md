@@ -2,7 +2,7 @@
 
 ## What is this?
 
-A pseudo-random-number-generator module implemented in N-API.
+A pseudo-random-number-generator module implemented in N-API. [Here](http://prng.di.unimi.it/) is all about the algorithms.
 
 ## Requirements
 
@@ -26,8 +26,9 @@ const crypto = require('crypto');
 const seed = crypto.randomBytes(32);
 const prng = xoshiro.create('256+', seed);
 
-// generate a random integer
+// generate a random unsigned 32-bit integer
 console.log(prng.roll());
+// generate a random unsigned integer in range [0, 10) (10 excluded)
 console.log(prng.roll(10));
 
 // shuffle elements in an array
@@ -36,7 +37,13 @@ prng.shuffle(arr);
 console.log(arr);
 ```
 
-## Todo
+### Supported algorithms
 
-1. Add tests
-2. Add API Docs in Readme
+- `'256+'` __xoshiro256+__, requires the seed to be of at least 32 bytes
+- `'256++'` __xoshiro256++__, requires the seed to be of at least 32 bytes
+- `'256**'` __xoshiro256**__, requires the seed to be of at least 32 bytes
+- `'512+'` __xoshiro512+__, requires the seed to be of at least 64 bytes
+- `'512++'` __xoshiro512++__, requires the seed to be of at least 64 bytes
+- `'512**'` __xoshiro512**__, requires the seed to be of at least 64 bytes
+
+Note: In order to make it work, the seed used to initialize the PRNG should not be all 0's.
