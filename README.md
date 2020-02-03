@@ -31,7 +31,7 @@ console.log(prng.roll());
 // generate a random unsigned integer in range [0, 10) (10 excluded)
 console.log(prng.roll(10));
 
-// shuffle elements in an array
+// shuffle elements in an array (or typed array)
 const arr = [5, 4, 3, 2, 1];
 prng.shuffle(arr);
 console.log(arr);

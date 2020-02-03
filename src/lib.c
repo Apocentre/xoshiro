@@ -4,7 +4,26 @@
 #include <node_api.h>
 #include "libxoshiro.h"
 
-#define NAPI_CALL(env, call) do { if ((call) != napi_ok) { _napi_call(env); return NULL; } } while (0)
+
+#define NAPI_CALL(env, call)                   \
+  do {                                         \
+    if ((call) != napi_ok) {                   \
+      _napi_call(env);                         \
+      return NULL;                             \
+    }                                          \
+  } while (0)
+
+#define SHUFFLE(type, prng, buf, sz)           \
+  do {                                         \
+    type *b = buf;                             \
+    while (sz > 1) {                           \
+    uint32_t r = sz + ~xoshiro_roll(prng, sz); \
+      if (r != --sz) {                         \
+        b[r] ^= b[sz] ^= b[r] ^= b[sz];        \
+      }                                        \
+    }                                          \
+  } while (0)
+
 
 static void _napi_call(napi_env env) {
   const napi_extended_error_info *error_info = NULL;
@@ -75,43 +94,125 @@ static napi_value prng_shuffle(napi_env env, napi_callback_info cb_info) {
   napi_value this;
   NAPI_CALL(env, napi_get_cb_info(env, cb_info, &argc, &array, &this, NULL));
 
-  uint32_t length;
-  NAPI_CALL(env, napi_get_array_length(env, array, &length));
-
   prng *prng;
   NAPI_CALL(env, napi_unwrap(env, this, (void **) &prng));
 
-  while (length > 1) {
-    uint32_t r = length + ~xoshiro_roll(prng, length);
-    if (r != --length) {
-      /* swap */
-      napi_value x, y;
-      napi_get_element(env, array, r, &x);
-      napi_get_element(env, array, length, &y);
-      napi_set_element(env, array, r, y);
-      napi_set_element(env, array, length, x);
+  uint32_t sz;
+  bool is_array_like;
+
+  NAPI_CALL(env, napi_is_array(env, array, &is_array_like));
+  if (is_array_like) {
+    NAPI_CALL(env, napi_get_array_length(env, array, &sz));
+    while (sz > 1) {
+      uint32_t r = sz + ~xoshiro_roll(prng, sz);
+      if (r != --sz) {
+        /* swap */
+        napi_value x, y;
+        napi_get_element(env, array, r, &x);
+        napi_get_element(env, array, sz, &y);
+        napi_set_element(env, array, r, y);
+        napi_set_element(env, array, sz, x);
+      }
     }
+    return NULL;
   }
 
-  return array;
+  NAPI_CALL(env, napi_is_typedarray(env, array, &is_array_like));
+  if (is_array_like) {
+    napi_typedarray_type arr_type;
+    void *buf;
+    {
+      size_t len;
+      NAPI_CALL(env, napi_get_typedarray_info(env, array, &arr_type, &len, (void **) &buf, NULL, NULL));
+      sz = len;
+    }
+
+    switch (arr_type) {
+      case napi_int8_array:
+      case napi_uint8_array:
+      case napi_uint8_clamped_array:
+        SHUFFLE(uint8_t, prng, buf, sz);
+        break;
+      case napi_int16_array:
+      case napi_uint16_array:
+        SHUFFLE(uint16_t, prng, buf, sz);
+        break;
+      case napi_int32_array:
+      case napi_uint32_array:
+      case napi_float32_array:
+        SHUFFLE(uint32_t, prng, buf, sz);
+        break;
+      case napi_float64_array:
+      case napi_bigint64_array:
+      case napi_biguint64_array:
+        SHUFFLE(uint64_t, prng, buf, sz);
+        break;
+      default:
+        /* cannot reach here */
+        ;
+    }
+    return NULL;
+  }
+
+  napi_throw_type_error(env, "", "An array-like object was expected");
+  return NULL;
 }
 
 
-static bool check_buffer(napi_env env, napi_value value, void **buf, size_t *len) {
-  bool is_buffer;
-  NAPI_CALL(env, napi_is_buffer(env, value, &is_buffer));
-  if (!is_buffer) return false;
-  NAPI_CALL(env, napi_get_buffer_info(env, value, buf, len));
-  return true;
+static size_t get_element_size(napi_typedarray_type arr_type) {
+  switch (arr_type) {
+    case napi_int8_array:
+    case napi_uint8_array:
+    case napi_uint8_clamped_array:
+      return 1;
+    case napi_int16_array:
+    case napi_uint16_array:
+      return 2;
+    case napi_int32_array:
+    case napi_uint32_array:
+    case napi_float32_array:
+      return 4;
+    case napi_float64_array:
+    case napi_bigint64_array:
+    case napi_biguint64_array:
+      return 8;
+    default:
+      /* cannot reach here */
+      return 0;
+  }
 }
 
 
-static bool check_arraybuffer(napi_env env, napi_value value, void **buf, size_t *len) {
-  bool is_buffer;
-  NAPI_CALL(env, napi_is_arraybuffer(env, value, &is_buffer));
-  if (!is_buffer) return false;
-  NAPI_CALL(env, napi_get_arraybuffer_info(env, value, buf, len));
-  return true;
+static const char *get_arraybuffer_info(
+  napi_env env,
+  napi_value value,
+  napi_typedarray_type *arr_type,
+  size_t *length,
+  void **data
+) {
+  bool has_data;
+
+  NAPI_CALL(env, napi_is_typedarray(env, value, &has_data));
+  if (has_data) {
+    NAPI_CALL(env, napi_get_typedarray_info(env, value, arr_type, length, data, NULL, NULL));
+    return NULL;
+  }
+
+  NAPI_CALL(env, napi_is_arraybuffer(env, value, &has_data));
+  if (has_data) {
+    NAPI_CALL(env, napi_get_arraybuffer_info(env, value, data, length));
+    arr_type && (*arr_type = napi_uint8_array);
+    return NULL;
+  }
+
+  NAPI_CALL(env, napi_is_dataview(env, value, &has_data));
+  if (has_data) {
+    NAPI_CALL(env, napi_get_dataview_info(env, value, length, data, NULL, NULL));
+    arr_type && (*arr_type = napi_uint8_array);
+    return NULL;
+  }
+
+  return "A TypedArray, ArrayBuffer or Dataview was expected";
 }
 
 
@@ -141,20 +242,21 @@ static napi_value create_state(napi_env env, napi_callback_info cb_info) {
     return NULL;
   }
 
-  /* seed should be a buffer or array-buffer */
+  /* seed should be an array-buffer or something using an array-buffer */
   uint64_t *buf;
   size_t length;
-  if (!check_buffer(env, argv[1], (void **) &buf, &length) &&
-      !check_arraybuffer(env, argv[1], (void **) &buf, &length)) {
-    napi_throw_type_error(env, NULL, "A Buffer or ArrayBuffer was expected");
+  napi_typedarray_type arr_type;
+  const char *errmsg = get_arraybuffer_info(env, argv[1], &arr_type, &length, (void **) &buf);
+  if (errmsg) {
+    napi_throw_type_error(env, NULL, errmsg);
     return NULL;
   }
 
   /* the length of seed should be greater than or equal to some value according to the algorithm */
   size_t expected_length = reg->sz * sizeof(uint64_t);
-  if (length < expected_length) {
+  if (length * get_element_size(arr_type) < expected_length) {
     char msg[64];
-    sprintf(msg, "insufficient length: at least %lu expected", expected_length);
+    sprintf(msg, "at least %zu bytes was expected", expected_length);
     napi_throw_error(env, NULL, msg);
     return NULL;
   }
@@ -181,11 +283,7 @@ static napi_value create_state(napi_env env, napi_callback_info cb_info) {
 #endif
 
   r->alg = reg->alg;
-
-  /* ensure consistence of endian on each platform */
-  for (size_t i = 0; i < reg->sz; i++) {
-    r->state[i] = htonll(buf[i]);
-  }
+  memcpy(r->state, buf, expected_length);
 
   /* the object to return */
   napi_value out;
