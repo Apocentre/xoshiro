@@ -1,5 +1,8 @@
 # Xoshiro
 
+![Node.js CI](https://github.com/0x10001/xoshiro/workflows/Node.js%20CI/badge.svg)
+![npm version](https://badge.fury.io/js/xoshiro.svg)
+
 ## What is this?
 
 A pseudo-random-number-generator module implemented in N-API. [Here](http://prng.di.unimi.it/) is all about the algorithms.

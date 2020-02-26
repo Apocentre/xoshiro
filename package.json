@@ -1,6 +1,6 @@
 {
   "name": "xoshiro",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "A pseudo random number generator",
   "main": "index.js",
   "scripts": {
@@ -19,6 +19,12 @@
   "author": "Eric Wong <ericwong@zju.edu.cn>",
   "license": "MIT",
   "types": "index.d.ts",
+  "files": [
+    "src/**/*",
+    "CMakeLists.txt",
+    "index.d.ts",
+    "index.js"
+  ],
   "dependencies": {
     "bindings": "^1.5.0",
     "cmake-js": "^6.0.0"
