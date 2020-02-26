@@ -1,7 +1,7 @@
 # Xoshiro
 
 ![Node.js CI](https://github.com/0x10001/xoshiro/workflows/Node.js%20CI/badge.svg)
-![npm version](https://badge.fury.io/js/xoshiro.svg)
+[![npm version](https://badge.fury.io/js/xoshiro.svg)](https://badge.fury.io/js/xoshiro)
 
 ## What is this?
 
