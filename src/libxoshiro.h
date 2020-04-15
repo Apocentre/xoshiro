@@ -5,9 +5,10 @@
 
 typedef uint32_t (*prng_alg)(uint64_t *);
 
-typedef struct __random_state {
+typedef struct rnd_state {
   prng_alg alg;
   uint64_t* state;
+  uint64_t cnt;
 } prng;
 
 

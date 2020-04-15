@@ -2,6 +2,7 @@
 
 uint32_t xoshiro_roll(prng *r, uint32_t k) {
   uint32_t x = r->alg(r->state);
+  r->cnt++;
   if (k == 0) {
     return x;
   }
@@ -10,6 +11,7 @@ uint32_t xoshiro_roll(prng *r, uint32_t k) {
 
   while (x >= bound) {
     x = r->alg(r->state);
+    r->cnt++;
   }
 
   return x % k;

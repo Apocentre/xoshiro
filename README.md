@@ -38,6 +38,8 @@ const prng = xoshiro.create('256+', seed);
 
 // generate a random unsigned 32-bit integer
 console.log(prng.roll());
+// count how many times the PRNG changes its states
+console.log(prng.count);  // -> 1
 // generate a random unsigned integer in range [0, 10) (10 excluded)
 console.log(prng.roll(10));
 

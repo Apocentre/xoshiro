@@ -19,7 +19,9 @@ const baseTest = function (alg, len) {
     const offset = 8;
     const seed = new DataView(crypto.randomBytes(len + offset).buffer, offset);
     const prng = xoshiro.create(alg, seed);
+    assert.equal(prng.count, 0);
     assert.equal(prng.roll(1), 0);
+    assert.equal(prng.count, 1);
   });
 
   const prng = xoshiro.create(alg, crypto.randomBytes(len));

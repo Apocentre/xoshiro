@@ -159,6 +159,23 @@ static napi_value prng_shuffle(napi_env env, napi_callback_info cb_info) {
 }
 
 
+static napi_value prng_count(napi_env env, napi_callback_info cb_info) {
+  napi_value this;
+  NAPI_CALL(env, napi_get_cb_info(env, cb_info, NULL, NULL, &this, NULL));
+
+  prng *gen;
+  NAPI_CALL(env, napi_unwrap(env, this, (void **) &gen));
+
+#ifdef DEBUG
+  printf("getting count: %d\n", gen->cnt);
+#endif
+
+  napi_value out;
+  NAPI_CALL(env, napi_create_uint32(env, gen->cnt, &out));
+  return out;
+}
+
+
 static size_t get_element_size(napi_typedarray_type arr_type) {
   switch (arr_type) {
     case napi_int8_array:
@@ -283,6 +300,7 @@ static napi_value create_state(napi_env env, napi_callback_info cb_info) {
 #endif
 
   r->alg = reg->alg;
+  r->cnt = 0;
   memcpy(r->state, buf, expected_length);
 
   /* the object to return */
@@ -293,6 +311,7 @@ static napi_value create_state(napi_env env, napi_callback_info cb_info) {
   napi_property_descriptor props[] = {
     {"roll",    NULL, prng_roll,    NULL, NULL, NULL, napi_default, NULL},
     {"shuffle", NULL, prng_shuffle, NULL, NULL, NULL, napi_default, NULL},
+    {"count",   NULL, NULL, prng_count,   NULL, NULL, napi_default, NULL},
   };
   NAPI_CALL(env, napi_define_properties(env, out, sizeof(props) / sizeof(napi_property_descriptor), props));
   return out;
