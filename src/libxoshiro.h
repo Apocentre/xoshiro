@@ -7,8 +7,11 @@ typedef uint32_t (*prng_alg)(uint64_t *);
 
 typedef struct rnd_state {
   prng_alg alg;
+  uint64_t bufsiz;
   uint64_t* state;
   uint64_t cnt;
+  uint64_t* state_s;
+  uint64_t cnt_s;
 } prng;
 
 

@@ -2,6 +2,8 @@ declare module "xoshiro" {
   interface PrngState {
     roll(k?: number): number
     shuffle(arr: any[] | NodeJS.TypedArray): void
+    stash(): void
+    restore(): void
     count: number
   }
 

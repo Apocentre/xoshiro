@@ -159,7 +159,7 @@ static napi_value prng_shuffle(napi_env env, napi_callback_info cb_info) {
 }
 
 
-static napi_value prng_count(napi_env env, napi_callback_info cb_info) {
+static napi_value prng_get_count(napi_env env, napi_callback_info cb_info) {
   napi_value this;
   NAPI_CALL(env, napi_get_cb_info(env, cb_info, NULL, NULL, &this, NULL));
 
@@ -167,12 +167,42 @@ static napi_value prng_count(napi_env env, napi_callback_info cb_info) {
   NAPI_CALL(env, napi_unwrap(env, this, (void **) &gen));
 
 #ifdef DEBUG
-  printf("getting count: %d\n", gen->cnt);
+  printf("getting count: %llu\n", gen->cnt);
 #endif
 
   napi_value out;
   NAPI_CALL(env, napi_create_uint32(env, gen->cnt, &out));
   return out;
+}
+
+
+static napi_value prng_stash(napi_env env, napi_callback_info cb_info) {
+  size_t argc = 0;
+  napi_value this;
+  NAPI_CALL(env, napi_get_cb_info(env, cb_info, &argc, NULL, &this, NULL));
+
+  prng *gen;
+  NAPI_CALL(env, napi_unwrap(env, this, (void **) &gen));
+
+  gen->cnt_s = gen->cnt;
+  memcpy(gen->state_s, gen->state, gen->bufsiz);
+
+  return NULL;
+}
+
+
+static napi_value prng_restore(napi_env env, napi_callback_info cb_info) {
+  size_t argc = 0;
+  napi_value this;
+  NAPI_CALL(env, napi_get_cb_info(env, cb_info, &argc, NULL, &this, NULL));
+
+  prng *gen;
+  NAPI_CALL(env, napi_unwrap(env, this, (void **) &gen));
+
+  gen->cnt = gen->cnt_s;
+  memcpy(gen->state, gen->state_s, gen->bufsiz);
+
+  return NULL;
 }
 
 
@@ -239,6 +269,7 @@ static void state_cleanup(napi_env env, void *data, void *hint) {
   fprintf(stderr, "xoshiro free object: %p\n", data);
 #endif
   free(((prng *) data)->state);
+  free(((prng *) data)->state_s);
   free(data);
 }
 
@@ -295,13 +326,22 @@ static napi_value create_state(napi_env env, napi_callback_info cb_info) {
     return NULL;
   }
 
+  r->state_s = malloc(expected_length);
+  if (!r->state_s) {
+    napi_throw_error(env, NULL, "out of memory");
+    return NULL;
+  }
+
 #ifdef DEBUG
   fprintf(stderr, "xoshiro alloc state: %p\n", r->state);
 #endif
 
   r->alg = reg->alg;
+  r->bufsiz = expected_length;
   r->cnt = 0;
+  r->cnt_s = 0;
   memcpy(r->state, buf, expected_length);
+  memcpy(r->state_s, buf, expected_length);
 
   /* the object to return */
   napi_value out;
@@ -309,9 +349,11 @@ static napi_value create_state(napi_env env, napi_callback_info cb_info) {
   NAPI_CALL(env, napi_wrap(env, out, r, state_cleanup, NULL, NULL));
 
   napi_property_descriptor props[] = {
-    {"roll",    NULL, prng_roll,    NULL, NULL, NULL, napi_default, NULL},
-    {"shuffle", NULL, prng_shuffle, NULL, NULL, NULL, napi_default, NULL},
-    {"count",   NULL, NULL, prng_count,   NULL, NULL, napi_default, NULL},
+    {"roll",    NULL, prng_roll,    NULL,   NULL, NULL, napi_default, NULL},
+    {"shuffle", NULL, prng_shuffle, NULL,   NULL, NULL, napi_default, NULL},
+    {"stash",   NULL, prng_stash,   NULL,   NULL, NULL, napi_default, NULL},
+    {"restore", NULL, prng_restore, NULL,   NULL, NULL, napi_default, NULL},
+    {"count",   NULL, NULL, prng_get_count, NULL, NULL, napi_default, NULL},
   };
   NAPI_CALL(env, napi_define_properties(env, out, sizeof(props) / sizeof(napi_property_descriptor), props));
   return out;

@@ -1,6 +1,6 @@
 {
   "name": "xoshiro",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "A pseudo random number generator",
   "main": "index.js",
   "scripts": {
@@ -30,8 +30,8 @@
     "cmake-js": "^6.1.0"
   },
   "devDependencies": {
-    "@types/node": "^13.11.1",
-    "mocha": "^7.1.1"
+    "@types/node": "^13.13.5",
+    "mocha": "^7.1.2"
   },
   "engines": {
     "node": ">=10.0"

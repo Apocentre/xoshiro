@@ -47,6 +47,17 @@ console.log(prng.roll(10));
 const arr = [5, 4, 3, 2, 1];
 prng.shuffle(arr);
 console.log(arr);
+
+// store the current state
+prng.stash()
+// generate a random number
+const x = prng.roll()
+// restore the state
+prng.restore()
+// generate a random number from the previous state
+const y = prng.roll()
+// and they should be equal
+console.log(x === y)  // -> true
 ```
 
 ### Supported algorithms
