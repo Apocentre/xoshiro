@@ -5,40 +5,21 @@
 #include "libxoshiro.h"
 
 
-#define NAPI_CALL(env, call)                   \
-  do {                                         \
-    if ((call) != napi_ok) {                   \
-      _napi_call(env);                         \
-      return NULL;                             \
-    }                                          \
-  } while (0)
-
-#define SHUFFLE(type, prng, buf, sz)           \
-  do {                                         \
-    type *b = buf;                             \
-    while (sz > 1) {                           \
-    uint32_t r = sz + ~xoshiro_roll(prng, sz); \
-      if (r != --sz) {                         \
-        b[r] ^= b[sz] ^= b[r] ^= b[sz];        \
-      }                                        \
-    }                                          \
-  } while (0)
-
-
-static void _napi_call(napi_env env) {
+static int error_occurred(napi_env env) {
   const napi_extended_error_info *error_info = NULL;
   napi_get_last_error_info(env, &error_info);
 
+  if (error_info->error_code == napi_ok) return 0;
+
   bool is_exception_pending;
   napi_is_exception_pending(env, &is_exception_pending);
-  if (is_exception_pending) return;
+  if (is_exception_pending) return 1;
 
-  const char *message = error_info->error_message;
-  if (message == NULL) {
-    message = "An error occurred without any explicit message";
-  }
-  napi_throw_error(env, NULL, message);
+  napi_throw_error(env, NULL, error_info->error_message);
+  return 1;
 }
+
+#define ASSERT(env) if (error_occurred(env)) return NULL
 
 
 typedef struct prng_alg_reg {
@@ -67,221 +48,132 @@ static prng_alg_reg *lookup(const char *alg) {
 
 
 static napi_value prng_roll(napi_env env, napi_callback_info cb_info) {
-  size_t argc = 1;
-  napi_value argv[1];
   napi_value this;
-  NAPI_CALL(env, napi_get_cb_info(env, cb_info, &argc, argv, &this, NULL));
+  napi_get_cb_info(env, cb_info, NULL, NULL, &this, NULL);
+  ASSERT(env);
 
-  prng *gen;
-  NAPI_CALL(env, napi_unwrap(env, this, (void **) &gen));
+  xoshiro_state *gen;
+  napi_unwrap(env, this, (void **) &gen);
+  ASSERT(env);
 
-  uint32_t k = 0;
-  if (argc > 0) {
-    NAPI_CALL(env, napi_get_value_uint32(env, argv[0], &k));
-  }
-
-  uint32_t x = xoshiro_roll(gen, k);
+  uint32_t x = gen->alg(gen->state);
   napi_value out;
-  NAPI_CALL(env, napi_create_uint32(env, x, &out));
+  napi_create_uint32(env, x, &out);
+  ASSERT(env);
 
   return out;
 }
 
 
-static napi_value prng_shuffle(napi_env env, napi_callback_info cb_info) {
-  size_t argc = 1;
-  napi_value array;
-  napi_value this;
-  NAPI_CALL(env, napi_get_cb_info(env, cb_info, &argc, &array, &this, NULL));
-
-  prng *prng;
-  NAPI_CALL(env, napi_unwrap(env, this, (void **) &prng));
-
-  uint32_t sz;
-  bool is_array_like;
-
-  NAPI_CALL(env, napi_is_array(env, array, &is_array_like));
-  if (is_array_like) {
-    NAPI_CALL(env, napi_get_array_length(env, array, &sz));
-    while (sz > 1) {
-      uint32_t r = sz + ~xoshiro_roll(prng, sz);
-      if (r != --sz) {
-        /* swap */
-        napi_value x, y;
-        napi_get_element(env, array, r, &x);
-        napi_get_element(env, array, sz, &y);
-        napi_set_element(env, array, r, y);
-        napi_set_element(env, array, sz, x);
-      }
-    }
-    return NULL;
-  }
-
-  NAPI_CALL(env, napi_is_typedarray(env, array, &is_array_like));
-  if (is_array_like) {
-    napi_typedarray_type arr_type;
-    void *buf;
-    {
-      size_t len;
-      NAPI_CALL(env, napi_get_typedarray_info(env, array, &arr_type, &len, (void **) &buf, NULL, NULL));
-      sz = len;
-    }
-
-    switch (arr_type) {
-      case napi_int8_array:
-      case napi_uint8_array:
-      case napi_uint8_clamped_array:
-        SHUFFLE(uint8_t, prng, buf, sz);
-        break;
-      case napi_int16_array:
-      case napi_uint16_array:
-        SHUFFLE(uint16_t, prng, buf, sz);
-        break;
-      case napi_int32_array:
-      case napi_uint32_array:
-      case napi_float32_array:
-        SHUFFLE(uint32_t, prng, buf, sz);
-        break;
-      case napi_float64_array:
-      case napi_bigint64_array:
-      case napi_biguint64_array:
-        SHUFFLE(uint64_t, prng, buf, sz);
-        break;
-      default:
-        /* cannot reach here */
-        ;
-    }
-    return NULL;
-  }
-
-  napi_throw_type_error(env, "", "An array-like object was expected");
-  return NULL;
-}
-
-
-static napi_value prng_get_count(napi_env env, napi_callback_info cb_info) {
-  napi_value this;
-  NAPI_CALL(env, napi_get_cb_info(env, cb_info, NULL, NULL, &this, NULL));
-
-  prng *gen;
-  NAPI_CALL(env, napi_unwrap(env, this, (void **) &gen));
-
-#ifdef DEBUG
-  printf("getting count: %llu\n", gen->cnt);
-#endif
-
-  napi_value out;
-  NAPI_CALL(env, napi_create_uint32(env, gen->cnt, &out));
-  return out;
-}
-
-
-static napi_value prng_stash(napi_env env, napi_callback_info cb_info) {
-  size_t argc = 0;
-  napi_value this;
-  NAPI_CALL(env, napi_get_cb_info(env, cb_info, &argc, NULL, &this, NULL));
-
-  prng *gen;
-  NAPI_CALL(env, napi_unwrap(env, this, (void **) &gen));
-
-  gen->cnt_s = gen->cnt;
-  memcpy(gen->state_s, gen->state, gen->bufsiz);
-
-  return NULL;
-}
-
-
-static napi_value prng_restore(napi_env env, napi_callback_info cb_info) {
-  size_t argc = 0;
-  napi_value this;
-  NAPI_CALL(env, napi_get_cb_info(env, cb_info, &argc, NULL, &this, NULL));
-
-  prng *gen;
-  NAPI_CALL(env, napi_unwrap(env, this, (void **) &gen));
-
-  gen->cnt = gen->cnt_s;
-  memcpy(gen->state, gen->state_s, gen->bufsiz);
-
-  return NULL;
-}
-
-
-static size_t get_element_size(napi_typedarray_type arr_type) {
-  switch (arr_type) {
-    case napi_int8_array:
-    case napi_uint8_array:
-    case napi_uint8_clamped_array:
-      return 1;
-    case napi_int16_array:
-    case napi_uint16_array:
-      return 2;
-    case napi_int32_array:
-    case napi_uint32_array:
-    case napi_float32_array:
-      return 4;
-    case napi_float64_array:
-    case napi_bigint64_array:
-    case napi_biguint64_array:
-      return 8;
-    default:
-      /* cannot reach here */
-      return 0;
-  }
-}
-
-
-static const char *get_arraybuffer_info(
+static const void *get_arraybuffer_info(
   napi_env env,
   napi_value value,
-  napi_typedarray_type *arr_type,
-  size_t *length,
-  void **data
+  void **data,
+  size_t *length
 ) {
   bool has_data;
+  size_t offset = 0;
 
-  NAPI_CALL(env, napi_is_typedarray(env, value, &has_data));
+  napi_is_typedarray(env, value, &has_data);
+  ASSERT(env);
   if (has_data) {
-    NAPI_CALL(env, napi_get_typedarray_info(env, value, arr_type, length, data, NULL, NULL));
+    napi_get_typedarray_info(env, value, NULL, NULL, NULL, &value, &offset);
+    ASSERT(env);
+  } else {
+    napi_is_dataview(env, value, &has_data);
+    ASSERT(env);
+    if (has_data) {
+      napi_get_dataview_info(env, value, NULL, NULL, &value, &offset);
+      ASSERT(env);
+    }
+  }
+
+  napi_is_arraybuffer(env, value, &has_data);
+  ASSERT(env);
+  if (has_data) {
+    napi_get_arraybuffer_info(env, value, data, length);
+    ASSERT(env);
+    *data = *(uint8_t **)data + offset;
+    *length -= offset;
     return NULL;
   }
 
-  NAPI_CALL(env, napi_is_arraybuffer(env, value, &has_data));
-  if (has_data) {
-    NAPI_CALL(env, napi_get_arraybuffer_info(env, value, data, length));
-    arr_type && (*arr_type = napi_uint8_array);
-    return NULL;
-  }
-
-  NAPI_CALL(env, napi_is_dataview(env, value, &has_data));
-  if (has_data) {
-    NAPI_CALL(env, napi_get_dataview_info(env, value, length, data, NULL, NULL));
-    arr_type && (*arr_type = napi_uint8_array);
-    return NULL;
-  }
-
-  return "A TypedArray, ArrayBuffer or Dataview was expected";
+  napi_throw_error(env, NULL, "A TypedArray, ArrayBuffer or Dataview was expected");
+  return NULL;
 }
 
 
 static void state_cleanup(napi_env env, void *data, void *hint) {
 #ifdef DEBUG
-  fprintf(stderr, "xoshiro free state: %p\n", ((prng *) data)->state);
+  fprintf(stderr, "xoshiro free state: %p\n", ((xoshiro_state *) data)->state);
   fprintf(stderr, "xoshiro free object: %p\n", data);
 #endif
-  free(((prng *) data)->state);
-  free(((prng *) data)->state_s);
+  free(((xoshiro_state *) data)->state);
   free(data);
 }
+
+
+static napi_value prng_set_state(napi_env env, napi_callback_info cb_info) {
+  napi_value this;
+  size_t argc = 1;
+  napi_value argv;
+  napi_get_cb_info(env, cb_info, &argc, &argv, &this, NULL);
+  ASSERT(env);
+
+  xoshiro_state *gen;
+  napi_unwrap(env, this, (void **) &gen);
+  ASSERT(env);
+
+  /* seed should be an array-buffer or something using an array-buffer */
+  uint64_t *buf;
+  size_t length;
+  get_arraybuffer_info(env, argv, (void **) &buf, &length);
+
+  const size_t expected_length = gen->bufsiz << 3;
+  if (length < expected_length) {
+    char msg[64];
+    sprintf(msg, "at least %zd bytes was expected", expected_length);
+    napi_throw_error(env, NULL, msg);
+    return NULL;
+  }
+
+  memcpy(gen->state, buf, expected_length);
+  return NULL;
+}
+
+
+static napi_value prng_get_state(napi_env env, napi_callback_info cb_info) {
+  napi_value this;
+  napi_get_cb_info(env, cb_info, NULL, NULL, &this, NULL);
+  ASSERT(env);
+
+  xoshiro_state *gen;
+  napi_unwrap(env, this, (void **) &gen);
+  ASSERT(env);
+
+  napi_value out;
+  const size_t length = gen->bufsiz << 3;
+  char *data;
+  napi_create_buffer(env, length, (void **) &data, &out);
+  ASSERT(env);
+
+  memcpy(data, gen->state, length);
+
+  return out;
+}
+
 
 static napi_value create_state(napi_env env, napi_callback_info cb_info) {
   /* 2 parameters required: algorithm and seed */
   size_t argc = 2;
   napi_value argv[2];
-  NAPI_CALL(env, napi_get_cb_info(env, cb_info, &argc, argv, NULL, NULL));
+  napi_get_cb_info(env, cb_info, &argc, argv, NULL, NULL);
+  ASSERT(env);
 
   /* algorithm should be in the table */
   char alg_name[8];
-  NAPI_CALL(env, napi_get_value_string_utf8(env, argv[0], alg_name, 8, NULL));
+  napi_get_value_string_utf8(env, argv[0], alg_name, 8, NULL);
+  ASSERT(env);
 
   prng_alg_reg *reg = lookup(alg_name);
 
@@ -290,27 +182,22 @@ static napi_value create_state(napi_env env, napi_callback_info cb_info) {
     return NULL;
   }
 
-  /* seed should be an array-buffer or something using an array-buffer */
-  uint64_t *buf;
+  char *data;
   size_t length;
-  napi_typedarray_type arr_type;
-  const char *errmsg = get_arraybuffer_info(env, argv[1], &arr_type, &length, (void **) &buf);
-  if (errmsg) {
-    napi_throw_type_error(env, NULL, errmsg);
-    return NULL;
-  }
+  get_arraybuffer_info(env, argv[1], (void **)&data, &length);
+  ASSERT(env);
 
-  /* the length of seed should be greater than or equal to some value according to the algorithm */
-  size_t expected_length = reg->sz * sizeof(uint64_t);
-  if (length * get_element_size(arr_type) < expected_length) {
+  const size_t expected_length = reg->sz << 3;
+
+  if (length < expected_length) {
     char msg[64];
-    sprintf(msg, "at least %zu bytes was expected", expected_length);
+    sprintf(msg, "at least %zd bytes was expected", expected_length);
     napi_throw_error(env, NULL, msg);
     return NULL;
   }
 
   /* create the internal PRNG state */
-  prng *r = malloc(sizeof(prng));
+  xoshiro_state *r = malloc(sizeof(xoshiro_state));
   if (!r) {
     napi_throw_error(env, NULL, "out of memory");
     return NULL;
@@ -326,36 +213,28 @@ static napi_value create_state(napi_env env, napi_callback_info cb_info) {
     return NULL;
   }
 
-  r->state_s = malloc(expected_length);
-  if (!r->state_s) {
-    napi_throw_error(env, NULL, "out of memory");
-    return NULL;
-  }
-
 #ifdef DEBUG
   fprintf(stderr, "xoshiro alloc state: %p\n", r->state);
 #endif
 
   r->alg = reg->alg;
-  r->bufsiz = expected_length;
-  r->cnt = 0;
-  r->cnt_s = 0;
-  memcpy(r->state, buf, expected_length);
-  memcpy(r->state_s, buf, expected_length);
+  r->bufsiz = expected_length >> 3;
+  memcpy(r->state, data, expected_length);
 
   /* the object to return */
-  napi_value out;
-  NAPI_CALL(env, napi_create_object(env, &out));
-  NAPI_CALL(env, napi_wrap(env, out, r, state_cleanup, NULL, NULL));
+  napi_value out = NULL;
+  napi_create_object(env, &out);
+  ASSERT(env);
+  napi_wrap(env, out, r, state_cleanup, NULL, NULL);
+  ASSERT(env);
 
   napi_property_descriptor props[] = {
-    {"roll",    NULL, prng_roll,    NULL,   NULL, NULL, napi_default, NULL},
-    {"shuffle", NULL, prng_shuffle, NULL,   NULL, NULL, napi_default, NULL},
-    {"stash",   NULL, prng_stash,   NULL,   NULL, NULL, napi_default, NULL},
-    {"restore", NULL, prng_restore, NULL,   NULL, NULL, napi_default, NULL},
-    {"count",   NULL, NULL, prng_get_count, NULL, NULL, napi_default, NULL},
+    {"roll",    NULL, prng_roll,    NULL,   NULL,            NULL, napi_default, NULL},
+    {"state",    NULL, NULL, prng_get_state, prng_set_state, NULL, napi_default, NULL},
   };
-  NAPI_CALL(env, napi_define_properties(env, out, sizeof(props) / sizeof(napi_property_descriptor), props));
+  napi_define_properties(env, out, sizeof(props) / sizeof(napi_property_descriptor), props);
+  ASSERT(env);
+
   return out;
 }
 
@@ -368,6 +247,7 @@ NAPI_MODULE_INIT(/* env, exports */) {
   napi_property_descriptor props[] = {
     {"create", NULL, create_state, NULL, NULL, NULL, napi_enumerable, NULL},
   };
-  NAPI_CALL(env, napi_define_properties(env, exports, sizeof(props) / sizeof(napi_property_descriptor), props));
+  napi_define_properties(env, exports, sizeof(props) / sizeof(napi_property_descriptor), props);
+  ASSERT(env);
   return exports;
 }
