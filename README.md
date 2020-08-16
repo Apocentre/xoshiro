@@ -40,7 +40,7 @@ const prng = xoshiro.create('256+', seed);
 console.log(prng.roll());
 
 // store the current state
-let s = prng.state
+const s = prng.state
 // generate a random number
 const x = prng.roll()
 // restore the state
