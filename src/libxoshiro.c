@@ -4,8 +4,8 @@
  * ref: http://prng.di.unimi.it/
  */
 
-#define times5(x) ((x) << 2 | (x))
-#define times9(x) ((x) << 3 | (x))
+#define times5(x) (((x) << 2) + (x))
+#define times9(x) (((x) << 3) + (x))
 
 #define rotl(x, k) (((x) << (k)) | ((x) >> (64 - (k))))
 
