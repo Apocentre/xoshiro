@@ -1,15 +1,15 @@
 #include "libxoshiro.h"
 
 /*
- * ref: http://prng.di.unimi.it/
- */
+* ref: http://prng.di.unimi.it/
+*/
 
 #define times5(x) (((x) << 2) + (x))
 #define times9(x) (((x) << 3) + (x))
 
 #define rotl(x, k) (((x) << (k)) | ((x) >> (64 - (k))))
 
-uint32_t xoshiro256plus_roll(uint64_t *s) {
+uint64_t xoshiro256plus_roll(uint64_t *s) {
   const uint64_t t = s[1] << 17;
 
   s[2] ^= s[0];
@@ -23,7 +23,7 @@ uint32_t xoshiro256plus_roll(uint64_t *s) {
   return s[0] + s[3];
 }
 
-uint32_t xoshiro256plusplus_roll(uint64_t *s) {
+uint64_t xoshiro256plusplus_roll(uint64_t *s) {
   uint64_t t = s[1] << 17;
 
   s[2] ^= s[0];
@@ -40,7 +40,14 @@ uint32_t xoshiro256plusplus_roll(uint64_t *s) {
   return rotl(t, 23) + s[0];
 }
 
-uint32_t xoshiro256starstar_roll(uint64_t *s) {
+uint64_t xoshiro256starstar_roll(uint64_t *s) {
+  // @patch for UR compatibility
+  // return result before applying the transformation,
+  // so it will always be one roll behind
+  uint64_t result = times5(s[1]);
+  result = rotl(result, 7);
+  result = times9(result);
+
   uint64_t t = s[1] << 17;
 
   s[2] ^= s[0];
@@ -56,10 +63,10 @@ uint32_t xoshiro256starstar_roll(uint64_t *s) {
   t = rotl(t, 7);
   t = times9(t);
 
-  return t;
+  return result;
 }
 
-uint32_t xoshiro512plus_roll(uint64_t *s) {
+uint64_t xoshiro512plus_roll(uint64_t *s) {
   const uint64_t t = s[1] << 11;
 
   s[2] ^= s[0];
@@ -78,7 +85,7 @@ uint32_t xoshiro512plus_roll(uint64_t *s) {
   return s[0] + s[2];
 }
 
-uint32_t xoshiro512plusplus_roll(uint64_t *s) {
+uint64_t xoshiro512plusplus_roll(uint64_t *s) {
   uint64_t t = s[1] << 11;
 
   s[2] ^= s[0];
@@ -99,7 +106,7 @@ uint32_t xoshiro512plusplus_roll(uint64_t *s) {
   return rotl(t, 17) + s[2];
 }
 
-uint32_t xoshiro512starstar_roll(uint64_t *s) {
+uint64_t xoshiro512starstar_roll(uint64_t *s) {
   uint64_t t = s[1] << 11;
 
   s[2] ^= s[0];
