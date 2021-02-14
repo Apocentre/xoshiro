@@ -3,6 +3,10 @@
 ![Node.js CI](https://github.com/0x10001/xoshiro/workflows/Node.js%20CI/badge.svg)
 [![npm version](https://badge.fury.io/js/xoshiro.svg)](https://badge.fury.io/js/xoshiro)
 
+## Apocentre Fork
+
+This fork makes this package compatible with the [BC-UR](https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2020-005-ur.md) specification for use with the 256** algorithm.
+
 ## What is this?
 
 A pseudo-random-number-generator module implemented in N-API. [Here](http://prng.di.unimi.it/) is all about the algorithms.
@@ -11,10 +15,10 @@ A pseudo-random-number-generator module implemented in N-API. [Here](http://prng
 
 - [CMake](http://www.cmake.org/download/)
 - A proper C/C++ compiler toolchain of the given platform
-    - **Windows**:
+  - **Windows**:
         - [Visual C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
         or a recent version of Visual C++ will do ([the free Community](https://www.visualstudio.com/products/visual-studio-community-vs) version works well)
-    - **Unix/Posix**:
+  - **Unix/Posix**:
         - Clang or GCC
         - Make
 
