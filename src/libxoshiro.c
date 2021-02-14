@@ -1,8 +1,8 @@
 #include "libxoshiro.h"
 
 /*
-* ref: http://prng.di.unimi.it/
-*/
+ * ref: http://prng.di.unimi.it/
+ */
 
 #define times5(x) (((x) << 2) + (x))
 #define times9(x) (((x) << 3) + (x))
@@ -44,6 +44,7 @@ uint64_t xoshiro256starstar_roll(uint64_t *s) {
   // @patch for UR compatibility
   // return result before applying the transformation,
   // so it will always be one roll behind
+  // const uint64_t result = rotl(s[1] * 5, 7) * 9;
   uint64_t result = times5(s[1]);
   result = rotl(result, 7);
   result = times9(result);
@@ -58,10 +59,6 @@ uint64_t xoshiro256starstar_roll(uint64_t *s) {
   s[2] ^= t;
 
   s[3] = rotl(s[3], 45);
-
-  t = times5(s[1]);
-  t = rotl(t, 7);
-  t = times9(t);
 
   return result;
 }
