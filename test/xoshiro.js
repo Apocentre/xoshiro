@@ -12,14 +12,14 @@ const baseTest = function (alg, len) {
   it('seeding ArrayBuffer', function () {
     const seed = crypto.randomBytes(len).buffer;
     const prng = xoshiro.create(alg, seed);
-    assert.strictEqual(prng.roll() % 1, 0);
+    assert.strictEqual(Number(prng.roll()) % 1, 0);
   });
 
   it('seeding Dataview', function () {
     const offset = 8;
     const seed = new DataView(crypto.randomBytes(len + offset).buffer, offset);
     const prng = xoshiro.create(alg, seed);
-    assert.strictEqual(prng.roll() % 1, 0);
+    assert.strictEqual(Number(prng.roll()) % 1, 0);
   });
 
   const prng = xoshiro.create(alg, crypto.randomBytes(len));
@@ -29,14 +29,14 @@ const baseTest = function (alg, len) {
     const p0 = xoshiro.create(alg, seed);
     const p1 = xoshiro.create(alg, seed);
 
-    assert.strictEqual(p0.roll(), p1.roll());
+    assert.strictEqual(Number(p0.roll()), Number(p1.roll()));
   });
 
   it('stash and restore', function () {
     const buf = prng.state;
-    const x = prng.roll();
+    const x = Number(prng.roll());
     prng.state = buf;
-    const y = prng.roll();
+    const y = Number(prng.roll());
     assert.strictEqual(x, y);
   });
 };
