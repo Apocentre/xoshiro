@@ -225,7 +225,7 @@ static napi_value create_state(napi_env env, napi_callback_info cb_info) {
   r->bufsiz = expected_length >> 3;
 
   // @patch for UR compatibility
-  for(int i = 0; i < 4; i++) {
+  for(int i = 0; i < reg->sz; i++) {
       int o = i * 8;
       uint64_t v = 0;
       for(int n = 0; n < 8; n++) {
