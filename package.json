@@ -1,7 +1,9 @@
 {
   "name": "@apocentre/xoshiro",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "description": "A pseudo random number generator",
+  "author": "Antonis Poulakis <antwnic4@gmail.com>",
+  "license": "MIT",
   "main": "index.js",
   "scripts": {
     "install": "cmake-js compile",
@@ -9,15 +11,13 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/0x10001/xoshiro"
+    "url": "git+https://github.com/apocentre/xoshiro.git"
   },
   "keywords": [
     "random",
     "xoshiro",
     "c"
   ],
-  "author": "Eric Wong <ericwong@zju.edu.cn>",
-  "license": "MIT",
   "types": "index.d.ts",
   "files": [
     "src/**/*",
@@ -35,5 +35,12 @@
   },
   "engines": {
     "node": ">=10.0"
+  },
+  "bugs": {
+    "url": "https://github.com/apocentre/xoshiro/issues"
+  },
+  "homepage": "https://github.com/apocentre/xoshiro#readme",
+  "directories": {
+    "test": "test"
   }
 }
