@@ -1,6 +1,6 @@
 {
   "name": "@apocentre/xoshiro",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "A pseudo random number generator",
   "author": "Antonis Poulakis <antwnic4@gmail.com>",
   "license": "MIT",

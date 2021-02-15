@@ -27,7 +27,7 @@ A pseudo-random-number-generator module implemented in N-API. [Here](http://prng
 Just run this command:
 
 ```shell script
-npm install --save xoshiro
+yarn add @apocentre/xoshiro
 ```
 
 ## Usage
